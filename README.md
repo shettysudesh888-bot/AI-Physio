@@ -17,7 +17,6 @@ AI Physio is an educational, full-stack portfolio application demonstrating how 
 ---
 
 ## 📸 Dashboard Preview
-## 📸 Dashboard Preview
 
 ### Dashboard
 ![Dashboard](screenshots/dashboard.png)
