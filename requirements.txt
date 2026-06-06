@@ -1,0 +1,11 @@
+﻿fastapi==0.136.1
+uvicorn==0.46.0
+python-multipart==0.0.20
+Pillow==12.2.0
+numpy==2.4.4
+opencv-python==4.13.0.92
+torch==2.11.0
+torchvision==0.26.0
+scikit-learn==1.8.0
+matplotlib==3.10.9
+openai==2.15.0

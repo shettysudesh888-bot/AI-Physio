@@ -1,0 +1,106 @@
+{
+  "model_path": "C:\\AI_Physio\\backend\\fracture_model.pth",
+  "class_names": [
+    "fractured",
+    "not_fractured"
+  ],
+  "image_size": 160,
+  "validation": {
+    "accuracy": 0.9878493317132442,
+    "precision_weighted": 0.9880943048641869,
+    "recall_weighted": 0.9878493317132442,
+    "f1_weighted": 0.9878197026635792,
+    "precision_macro": 0.9899193548387097,
+    "recall_macro": 0.9851632047477745,
+    "f1_macro": 0.9873782298235713,
+    "roc_auc": 0.9990597257329866,
+    "r2_score_note": "R2 is a regression metric and is not appropriate for binary classification.",
+    "classification_report": {
+      "fractured": {
+        "precision": 1.0,
+        "recall": 0.9703264094955489,
+        "f1-score": 0.9849397590361446,
+        "support": 337.0
+      },
+      "not_fractured": {
+        "precision": 0.9798387096774194,
+        "recall": 1.0,
+        "f1-score": 0.9898167006109979,
+        "support": 486.0
+      },
+      "accuracy": 0.9878493317132442,
+      "macro avg": {
+        "precision": 0.9899193548387097,
+        "recall": 0.9851632047477745,
+        "f1-score": 0.9873782298235713,
+        "support": 823.0
+      },
+      "weighted avg": {
+        "precision": 0.9880943048641869,
+        "recall": 0.9878493317132442,
+        "f1-score": 0.9878197026635792,
+        "support": 823.0
+      }
+    },
+    "confusion_matrix": [
+      [
+        327,
+        10
+      ],
+      [
+        0,
+        486
+      ]
+    ],
+    "support": 823
+  },
+  "test": {
+    "accuracy": 0.9961795606494747,
+    "precision_weighted": 0.9962111998987543,
+    "recall_weighted": 0.9961795606494747,
+    "f1_weighted": 0.9961807534579818,
+    "precision_macro": 0.9958592132505175,
+    "recall_macro": 0.9964788732394366,
+    "f1_macro": 0.9961542134687011,
+    "roc_auc": 0.9980005292716634,
+    "r2_score_note": "R2 is a regression metric and is not appropriate for binary classification.",
+    "classification_report": {
+      "fractured": {
+        "precision": 1.0,
+        "recall": 0.9929577464788732,
+        "f1-score": 0.9964664310954063,
+        "support": 568.0
+      },
+      "not_fractured": {
+        "precision": 0.9917184265010351,
+        "recall": 1.0,
+        "f1-score": 0.9958419958419958,
+        "support": 479.0
+      },
+      "accuracy": 0.9961795606494747,
+      "macro avg": {
+        "precision": 0.9958592132505175,
+        "recall": 0.9964788732394366,
+        "f1-score": 0.9961542134687011,
+        "support": 1047.0
+      },
+      "weighted avg": {
+        "precision": 0.9962111998987543,
+        "recall": 0.9961795606494747,
+        "f1-score": 0.9961807534579818,
+        "support": 1047.0
+      }
+    },
+    "confusion_matrix": [
+      [
+        564,
+        4
+      ],
+      [
+        0,
+        479
+      ]
+    ],
+    "support": 1047
+  }
+}
