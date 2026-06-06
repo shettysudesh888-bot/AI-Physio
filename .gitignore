@@ -20,10 +20,8 @@ backend/uploads/*
 
 # Trained Models (Large Files)
 backend/*.pth
-backend/fracture_model.pth
-backend/fracture_model_v1.pth
 
-# Dataset (571 MB - do not upload)
+# Dataset
 dataset/
 
 # Database
