@@ -1,19 +1,44 @@
+# Virtual Environments
 .venv/
 .venv-clean/
 .venv-local/
+
+# Python Cache
 __pycache__/
 *.pyc
-backend/uploads/*
-!backend/uploads/.gitkeep
-backend/fracture_model.pth
-backend/class_names.json
-dataset_integrity_report.json
-dataset_skipped_images.json
-ai_physio.db
-backend/fracture_model_v1.pth
-backend/class_names_v1.json
+*.pyo
+*.pyd
 
-dataset/
-
+# VS Code / OS Files
 .vscode/
 .DS_Store
+Thumbs.db
+
+# Uploads
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# Trained Models (Large Files)
+backend/*.pth
+backend/fracture_model.pth
+backend/fracture_model_v1.pth
+
+# Dataset (571 MB - do not upload)
+dataset/
+
+# Database
+ai_physio.db
+
+# Generated Reports
+dataset_integrity_report.json
+dataset_skipped_images.json
+
+# Logs
+*.log
+
+# Environment Variables / Secrets
+.env
+.env.*
+
+# Jupyter Notebook Checkpoints
+.ipynb_checkpoints/
