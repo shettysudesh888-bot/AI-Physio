@@ -17,6 +17,22 @@ AI Physio is an educational, full-stack portfolio application demonstrating how 
 ---
 
 ## 📸 Dashboard Preview
+## 📸 Dashboard Preview
+
+### Dashboard
+![Dashboard](screenshots/dashboard.png)
+
+### X-Ray Analysis & Heatmap
+![Analysis](screenshots/analysis.png)
+
+### Recovery Guidance
+![Recovery Guidance](screenshots/recovery_guidance.png)
+
+### Exercise Plan
+![Exercise Plan](screenshots/exercise_plan.png)
+
+### Nutrition Plan
+![Nutrition Plan](screenshots/diet_plan.png)
 
 The application features a clean, responsive, clinical-style browser dashboard:
 *   **Dual View Comparison**: Interactive image comparisons showing the uploaded X-ray side-by-side with its computed **Grad-CAM interpretability overlay**.
