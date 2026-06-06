@@ -15,6 +15,15 @@ AI Physio is an educational, full-stack portfolio application demonstrating how 
 > AI Physio is an **educational project and portfolio demonstration**. It is **not a medical device**, has not been certified by any regulatory authority (like the FDA or EMA), and **must not be used** as a replacement for professional clinical diagnosis, treatment planning, or emergency triage. Suspicion of bone fractures or joint dislocations requires immediate professional imaging and care.
 
 ---
+## 👨‍💻 Author
+
+**Sudesh S Shetty**
+
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-blue?logo=linkedin)](https://www.linkedin.com/in/sudesh-s-shetty-061838319)
+
+[![GitHub](https://img.shields.io/badge/GitHub-Profile-black?logo=github)](https://github.com/shettysudesh888-bot)
+
+---
 
 ## 📸 Dashboard Preview
 
