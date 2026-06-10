@@ -20,6 +20,12 @@ from pathlib import Path
 import cv2
 import numpy as np
 from PIL import Image
+from torchvision import transforms
+
+try:
+    from backend.config import IMAGE_SIZE, IMAGENET_MEAN, IMAGENET_STD
+except ImportError:
+    from config import IMAGE_SIZE, IMAGENET_MEAN, IMAGENET_STD
 
 # ---------------------------------------------------------------------------
 # Paths
@@ -33,13 +39,8 @@ CLASSES_PATH = BASE_DIR / "class_names.json"
 # Constants
 # ---------------------------------------------------------------------------
 
-IMAGE_SIZE = (160, 160)
 MIN_CONFIDENCE = 0.70
 MIN_PROBABILITY_MARGIN = 0.15
-
-# ImageNet normalization (must match training)
-IMAGENET_MEAN = np.array([0.485, 0.456, 0.406], dtype=np.float32)
-IMAGENET_STD  = np.array([0.229, 0.224, 0.225], dtype=np.float32)
 
 # Map model output labels to recommendation condition keys.
 # Keys must match EXERCISE_MAP in recommendation.py
@@ -48,6 +49,18 @@ LABEL_TO_CONDITION = {
     "not_fractured": "normal",
     # Extend here when you add more classes
 }
+
+def get_condition_from_label(label: str) -> str:
+    """Case-insensitive label to condition mapping."""
+    label_lower = label.lower()
+    if label_lower in LABEL_TO_CONDITION:
+        return LABEL_TO_CONDITION[label_lower]
+    # Fallback heuristics if dataset dirs are renamed
+    if "not" in label_lower or "normal" in label_lower:
+        return "normal"
+    if "fracture" in label_lower:
+        return "fracture"
+    return "normal"
 
 
 def _load_grayscale(image_path: str) -> np.ndarray:
@@ -173,7 +186,11 @@ def _load_model():
     )
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model.load_state_dict(torch.load(MODEL_PATH, map_location=device))
+    checkpoint = torch.load(MODEL_PATH, map_location=device)
+    if isinstance(checkpoint, dict) and "model_state_dict" in checkpoint:
+        model.load_state_dict(checkpoint["model_state_dict"])
+    else:
+        model.load_state_dict(checkpoint)
     model.eval()
     model = model.to(device)
 
@@ -193,35 +210,28 @@ def _preprocess(image_path: str) -> "np.ndarray":
     Load and preprocess an X-ray image for DenseNet121.
 
     Pipeline:
-    - Load as grayscale (X-rays are single-channel)
-    - Resize to 224x224
-    - CLAHE contrast enhancement
-    - Convert to 3-channel RGB (DenseNet expects 3 channels)
+    - Load using PIL
+    - Convert to RGB
+    - Resize to IMAGE_SIZE
     - Normalize with ImageNet mean/std
-    - Shape: (1, 3, H, W), batch of 1
+    - Return numpy array of shape (1, 3, H, W) for DenseNet121
     """
-    img = _load_grayscale(image_path)
+    inference_transform = transforms.Compose([
+        transforms.Resize((IMAGE_SIZE, IMAGE_SIZE)),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD),
+    ])
 
-    # Resize
-    img = cv2.resize(img, IMAGE_SIZE)
+    try:
+        pil_img = Image.open(image_path).convert("RGB")
+    except Exception as e:
+        raise FileNotFoundError(f"Cannot load image {image_path}: {e}")
 
-    # CLAHE improves local contrast typical in X-rays.
-    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
-    img   = clahe.apply(img)
-
-    # Convert to float32 in [0, 1]
-    img = img.astype(np.float32) / 255.0
-
-    # Stack to 3 channels (H, W) -> (H, W, 3)
-    img_rgb = np.stack([img, img, img], axis=-1)
-
-    # Apply ImageNet normalization: (value - mean) / std per channel
-    img_rgb = (img_rgb - IMAGENET_MEAN) / IMAGENET_STD
-
-    # (H, W, 3) -> (1, 3, H, W)
-    img_rgb = img_rgb.transpose(2, 0, 1)[np.newaxis, :]
-
-    return img_rgb.astype(np.float32)
+    tensor = inference_transform(pil_img)
+    # Add batch dimension
+    tensor = tensor.unsqueeze(0)
+    
+    return tensor.numpy()
 
 
 # ---------------------------------------------------------------------------
@@ -244,7 +254,7 @@ def _mock_predict(image_array: np.ndarray) -> dict:
     scores = rng.dirichlet(np.ones(len(_MOCK_CLASSES))).tolist()
 
     class_scores = {c: round(float(s), 4) for c, s in zip(_MOCK_CLASSES, scores)}
-    condition    = LABEL_TO_CONDITION.get(label, "normal")
+    condition    = get_condition_from_label(label)
 
     return {
         "label":        label,
@@ -276,7 +286,7 @@ def _real_predict(model, idx_to_cls: dict, image_array: np.ndarray) -> dict:
 
     best_idx  = int(np.argmax(probs))
     label     = idx_to_cls.get(best_idx, "unknown")
-    condition = LABEL_TO_CONDITION.get(label, "normal")
+    condition = get_condition_from_label(label)
 
     class_scores = {
         idx_to_cls.get(i, str(i)): round(float(p), 4)

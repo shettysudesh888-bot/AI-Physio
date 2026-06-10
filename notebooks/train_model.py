@@ -37,13 +37,15 @@ except ImportError:
 # ---------------------------------------------------------------------------
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(PROJECT_ROOT))
+from backend.config import IMAGE_SIZE, IMAGENET_MEAN, IMAGENET_STD
+
 DATASET_DIR = PROJECT_ROOT / "dataset"
 BACKEND_DIR = PROJECT_ROOT / "backend"
 SAVE_MODEL = BACKEND_DIR / "fracture_model.pth"
 SAVE_CLASSES = BACKEND_DIR / "class_names.json"
 SKIPPED_IMAGES_REPORT = PROJECT_ROOT / "dataset_skipped_images.json"
 
-IMAGE_SIZE    = int(os.getenv("AI_PHYSIO_IMAGE_SIZE", "160"))
 BATCH_SIZE    = int(os.getenv("AI_PHYSIO_BATCH_SIZE", "48"))
 EPOCHS        = int(os.getenv("AI_PHYSIO_EPOCHS", "5"))
 LR            = 1e-4               # lower LR for fine-tuning pretrained weights
@@ -54,9 +56,7 @@ RANDOM_SEED = int(os.getenv("AI_PHYSIO_SEED", "42"))
 NUM_WORKERS = int(os.getenv("AI_PHYSIO_NUM_WORKERS", "0"))  # safest on Windows CPU
 PIN_MEMORY = torch.cuda.is_available()
 
-# ImageNet normalization is required when using pretrained DenseNet121.
-IMAGENET_MEAN = [0.485, 0.456, 0.406]
-IMAGENET_STD  = [0.229, 0.224, 0.225]
+# ImageNet normalization uses values from backend.config
 
 ImageFile.LOAD_TRUNCATED_IMAGES = False
 random.seed(RANDOM_SEED)
@@ -409,6 +409,8 @@ def evaluate_with_report(loader, split_name: str):
 
 best_val_loss = float("inf")
 best_epoch    = -1
+patience      = 5
+epochs_no_improve = 0
 
 print("\n" + "="*60)
 print("Starting training")
@@ -438,8 +440,20 @@ for epoch in range(1, EPOCHS + 1):
     if val_loss < best_val_loss:
         best_val_loss = val_loss
         best_epoch    = epoch
-        torch.save(model.state_dict(), SAVE_MODEL)
+        torch.save({
+            'epoch': epoch,
+            'model_state_dict': model.state_dict(),
+            'optimizer_state_dict': optimizer.state_dict(),
+            'val_loss': best_val_loss,
+        }, SAVE_MODEL)
         print(f"  Best model saved (epoch {epoch}, val_loss={val_loss:.4f})")
+        epochs_no_improve = 0
+    else:
+        epochs_no_improve += 1
+        print(f"  Early stopping counter: {epochs_no_improve} out of {patience}")
+        if epochs_no_improve >= patience:
+            print("  Early stopping triggered!")
+            break
 
 print(f"\nTraining complete. Best epoch: {best_epoch} | Best val loss: {best_val_loss:.4f}")
 
@@ -456,7 +470,11 @@ print(f"Class mapping saved to {SAVE_CLASSES}")
 # ---------------------------------------------------------------------------
 
 print("\nLoading best checkpoint for test evaluation...")
-model.load_state_dict(torch.load(SAVE_MODEL, map_location=device))
+checkpoint = torch.load(SAVE_MODEL, map_location=device)
+if isinstance(checkpoint, dict) and "model_state_dict" in checkpoint:
+    model.load_state_dict(checkpoint["model_state_dict"])
+else:
+    model.load_state_dict(checkpoint)
 
 evaluate_with_report(val_loader,  "Validation")
 evaluate_with_report(test_loader, "Test")

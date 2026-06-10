@@ -3,16 +3,17 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AI Physio</title>
+    <title>AI Physio — AI-Assisted X-Ray Analysis & Recovery Platform</title>
+    <meta name="description" content="AI-powered bone X-ray fracture detection with body-part-specific recovery guidance, exercise plans, and nutrition recommendations." />
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body data-theme="dark">
     <div class="app-shell">
       <aside class="sidebar">
-       <div class="brand-lockup">
-  <img src="./assets/logo.png" class="brand-logo" alt="AI Physio" />
-  <span class="brand-name">AI Physio</span>
-</div>
+        <div class="brand-lockup">
+          <img src="./assets/logo.png" class="brand-logo" alt="AI Physio" />
+          <span class="brand-name">AI Physio</span>
+        </div>
 
         <nav class="side-nav" aria-label="Workspace">
           <a class="active" href="#dashboardPage" data-page-target="dashboardPage">
@@ -42,7 +43,7 @@
         <header class="topbar">
           <div>
             <p class="eyebrow">AI-Powered Fracture Detection</p>
-            <h1>Clinical X-Ray Analysis & Recovery Platform</h1>
+            <h1>AI-Assisted X-Ray Analysis &amp; Recovery Platform</h1>
           </div>
           <div class="topbar-actions">
             <button id="assistantTopButton" class="secondary-action compact-action top-assistant-button" type="button">
@@ -64,7 +65,7 @@
           <div class="telemetry-item">
             <span class="telemetry-dot accent"></span>
             <span class="telemetry-label">Dataset Size</span>
-            <strong class="telemetry-value">20K+ Images</strong>
+            <strong class="telemetry-value">17K+ Images</strong>
           </div>
           <div class="telemetry-item">
             <span class="telemetry-dot brand"></span>
@@ -79,6 +80,9 @@
         </section>
 
         <main class="shell">
+          <!-- ============================================================ -->
+          <!-- DASHBOARD PAGE                                                -->
+          <!-- ============================================================ -->
           <section class="page active-page" id="dashboardPage">
             <section class="dashboard-band">
               <div class="dashboard-copy">
@@ -93,14 +97,44 @@
                   <p>Saved</p>
                 </article>
                 <article class="stat-card">
+                  <span>Fractures</span>
+                  <strong id="fractureStat">-</strong>
+                  <p>Detected</p>
+                </article>
+                <article class="stat-card">
+                  <span>Normal</span>
+                  <strong id="normalStat">-</strong>
+                  <p>Cases</p>
+                </article>
+                <article class="stat-card">
+                  <span>Avg Confidence</span>
+                  <strong id="avgConfidenceStat">-</strong>
+                  <p>Accuracy</p>
+                </article>
+                <article class="stat-card">
+                  <span>High Risk</span>
+                  <strong id="highRiskStat">-</strong>
+                  <p>Cases</p>
+                </article>
+                <article class="stat-card risk-distribution-stat" id="lowRiskStatCard" hidden>
+                  <span>Low Risk Cases</span>
+                  <strong id="lowRiskStat">-</strong>
+                  <p>Risk distribution</p>
+                </article>
+                <article class="stat-card risk-distribution-stat" id="moderateRiskStatCard" hidden>
+                  <span>Moderate Risk Cases</span>
+                  <strong id="moderateRiskStat">-</strong>
+                  <p>Risk distribution</p>
+                </article>
+                <article class="stat-card risk-distribution-stat" id="highRiskDistributionStatCard" hidden>
+                  <span>High Risk Cases</span>
+                  <strong id="highRiskDistributionStat">-</strong>
+                  <p>Risk distribution</p>
+                </article>
+                <article class="stat-card">
                   <span>API</span>
                   <strong id="apiStat">Checking</strong>
                   <p>Backend</p>
-                </article>
-                <article class="stat-card">
-                  <span>Model</span>
-                  <strong>DenseNet</strong>
-                  <p>Classifier</p>
                 </article>
               </div>
             </section>
@@ -151,317 +185,529 @@
             </section>
           </section>
 
+          <!-- ============================================================ -->
+          <!-- ANALYSIS PAGE                                                 -->
+          <!-- ============================================================ -->
           <section class="page" id="analysisPage" hidden>
             <section class="analysis-layout">
+
+              <!-- ---- Upload & Clinical Intake Panel ---- -->
               <article class="upload-panel">
-              <div class="section-heading">
-                <span class="step" title="Step 1: Upload and Patient Intake">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                </span>
-                <div>
-                  <h2>New Analysis</h2>
-                  <p>Upload image and context.</p>
+                <div class="section-heading">
+                  <span class="step" title="Step 1: Upload X-ray">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                  </span>
+                  <div>
+                    <h2>New Analysis</h2>
+                    <p>Upload X-ray, then complete clinical context.</p>
+                  </div>
                 </div>
-              </div>
 
-              <label class="dropzone" for="xrayInput" id="dropzone">
-                <input id="xrayInput" type="file" accept=".jpg,.jpeg,.png,.bmp,.tiff,image/*" />
-                <span class="upload-icon">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                </span>
-                <strong>Choose image</strong>
-                <small>JPG, PNG, BMP, or TIFF</small>
-              </label>
-
-              <div class="intake-panel">
-                <h3>Patient Context</h3>
-                <div class="intake-grid">
-                  <label>
-                    <span>Age</span>
-                    <input id="patientAge" type="number" min="0" max="120" inputmode="numeric" placeholder="Optional" />
-                  </label>
-                  <label>
-                    <span>Sex</span>
-                    <select id="patientSex">
-                      <option value="">Not specified</option>
-                      <option value="female">Female</option>
-                      <option value="male">Male</option>
-                      <option value="other">Other</option>
-                    </select>
-                  </label>
-                  <label>
-                    <span>Body Part</span>
-                    <select id="bodyPart">
-                      <option value="">Not specified</option>
-                      <option value="wrist">Wrist</option>
-                      <option value="hand">Hand</option>
-                      <option value="elbow">Elbow</option>
-                      <option value="shoulder">Shoulder</option>
-                      <option value="ankle">Ankle</option>
-                      <option value="foot">Foot</option>
-                      <option value="knee">Knee</option>
-                      <option value="hip">Hip</option>
-                      <option value="spine">Spine</option>
-                    </select>
-                  </label>
-                  <label>
-                    <span>Pain Level</span>
-                    <input id="painLevel" type="number" min="0" max="10" inputmode="numeric" placeholder="0-10" />
-                  </label>
-                </div>
-                <div class="intake-checks">
-                  <label><input id="swelling" type="checkbox" /> Swelling</label>
-                  <label><input id="recentTrauma" type="checkbox" /> Recent trauma</label>
-                </div>
-                <label class="notes-field">
-                  <span>Symptoms</span>
-                  <textarea id="symptomNotes" maxlength="500" rows="3" placeholder="Optional notes"></textarea>
+                <label class="dropzone" for="xrayInput" id="dropzone">
+                  <input id="xrayInput" type="file" accept=".jpg,.jpeg,.png,.bmp,.tiff,image/*" />
+                  <span class="upload-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                  </span>
+                  <strong>Choose X-ray image</strong>
+                  <small>JPG, PNG, BMP, or TIFF</small>
                 </label>
-              </div>
 
-              <div class="analysis-timeline" aria-label="Analysis steps">
-                <span class="active" id="stepUpload">Upload</span>
-                <span id="stepPreprocess">Preprocess</span>
-                <span id="stepPredict">Predict</span>
-                <span id="stepExplain">Explain</span>
-                <span id="stepRecommend">Recommend</span>
-              </div>
+                <!-- Analysis timeline -->
+                <div class="analysis-timeline" aria-label="Analysis steps">
+                  <span class="active" id="stepUpload">Upload</span>
+                  <span id="stepPredict">Detect</span>
+                  <span id="stepContext">Context</span>
+                  <span id="stepRecover">Recovery Plan</span>
+                  <span id="stepDone">Complete</span>
+                </div>
 
-              <button id="analyzeButton" class="primary-action" type="button" disabled>
-                Analyze X-ray
-              </button>
+                <!-- Step 1 detect button -->
+                <div id="detectPhase">
+                  <button id="detectButton" class="primary-action" type="button" disabled>
+                    Step 1 — Detect Fracture
+                  </button>
+                  <p class="message" id="message"></p>
+                </div>
 
-              <p class="message" id="message"></p>
+                <!-- Step 2 clinical intake (shown after detection) -->
+                <div class="intake-panel" id="clinicalIntakePanel" hidden>
+                  <div class="intake-header">
+                    <h3>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                      Clinical Context <span class="required-note">All fields required</span>
+                    </h3>
+                    <p class="intake-subtitle">Your answers drive the recovery plan. The AI uses fracture detection <em>plus</em> this information.</p>
+                  </div>
+
+                  <div class="intake-grid">
+
+                    <!-- Body Part -->
+                    <label class="intake-field">
+                      <span>Body Part <span class="req">*</span></span>
+                      <select id="bodyPart" required>
+                        <option value="">Select body part…</option>
+                        <option value="skull">Skull</option>
+                        <option value="spine">Spine</option>
+                        <option value="shoulder">Shoulder</option>
+                        <option value="elbow">Elbow</option>
+                        <option value="wrist_hand">Wrist / Hand</option>
+                        <option value="pelvis_hip">Pelvis / Hip</option>
+                        <option value="femur">Femur</option>
+                        <option value="knee">Knee</option>
+                        <option value="lower_leg">Lower Leg</option>
+                        <option value="ankle_foot">Ankle / Foot</option>
+                      </select>
+                    </label>
+
+                    <!-- Treatment Status -->
+                    <label class="intake-field">
+                      <span>Treatment Status <span class="req">*</span></span>
+                      <select id="treatmentStatus" required>
+                        <option value="">Select treatment…</option>
+                        <option value="not_evaluated">Not Evaluated Yet</option>
+                        <option value="cast_plaster">Cast / Plaster</option>
+                        <option value="brace_support">Brace / Support</option>
+                        <option value="surgery_performed">Surgery Performed</option>
+                        <option value="physiotherapy_started">Physiotherapy Started</option>
+                      </select>
+                    </label>
+
+                    <!-- Recovery Stage -->
+                    <label class="intake-field">
+                      <span>Recovery Stage <span class="req">*</span></span>
+                      <select id="recoveryStage" required>
+                        <option value="">Select stage…</option>
+                        <option value="acute_phase">Acute Phase (0–2 Weeks)</option>
+                        <option value="early_recovery">Early Recovery (2–6 Weeks)</option>
+                        <option value="late_recovery">Late Recovery (6+ Weeks)</option>
+                      </select>
+                    </label>
+
+                    <!-- Swelling Level -->
+                    <label class="intake-field">
+                      <span>Swelling Level <span class="req">*</span></span>
+                      <select id="swellingLevel" required>
+                        <option value="">Select swelling…</option>
+                        <option value="none">None</option>
+                        <option value="mild">Mild</option>
+                        <option value="moderate">Moderate</option>
+                        <option value="severe">Severe</option>
+                      </select>
+                    </label>
+
+                    <!-- Mobility Status -->
+                    <label class="intake-field">
+                      <span>Mobility Status <span class="req">*</span></span>
+                      <select id="mobilityStatus" required>
+                        <option value="">Select mobility…</option>
+                        <option value="normal">Normal</option>
+                        <option value="slightly_limited">Slightly Limited</option>
+                        <option value="moderately_limited">Moderately Limited</option>
+                        <option value="severely_limited">Severely Limited</option>
+                      </select>
+                    </label>
+
+                    <!-- Doctor Restrictions -->
+                    <label class="intake-field">
+                      <span>Doctor Restrictions <span class="req">*</span></span>
+                      <select id="doctorRestrictions" required>
+                        <option value="">Select restrictions…</option>
+                        <option value="no_restrictions">No Restrictions</option>
+                        <option value="weight_bearing_restricted">Weight Bearing Restricted</option>
+                        <option value="movement_restricted">Movement Restricted</option>
+                        <option value="exercise_restricted">Exercise Restricted</option>
+                        <option value="not_sure">Not Sure</option>
+                      </select>
+                    </label>
+
+                    <!-- Exercise Approval -->
+                    <label class="intake-field">
+                      <span>Doctor Advised Exercises? <span class="req">*</span></span>
+                      <select id="exerciseApproval" required>
+                        <option value="">Select approval…</option>
+                        <option value="yes">Yes — exercises advised</option>
+                        <option value="no">No — no exercises yet</option>
+                        <option value="not_sure">Not Sure</option>
+                      </select>
+                    </label>
+
+                    <!-- Pain Level slider -->
+                    <label class="intake-field pain-field">
+                      <span>Pain Level (0–10) <span class="req">*</span></span>
+                      <div class="pain-slider-wrap">
+                        <input id="painLevel" type="range" min="0" max="10" value="5" class="pain-slider" />
+                        <span class="pain-value" id="painDisplay">5</span>
+                      </div>
+                      <div class="pain-labels">
+                        <span>No pain</span>
+                        <span>Moderate</span>
+                        <span>Worst pain</span>
+                      </div>
+                    </label>
+
+                  </div>
+
+                  <!-- Optional supplementary fields -->
+                  <details class="optional-fields">
+                    <summary>Optional information</summary>
+                    <div class="intake-grid">
+                      <label class="intake-field">
+                        <span>Age</span>
+                        <input id="patientAge" type="number" min="0" max="120" inputmode="numeric" placeholder="Optional" />
+                      </label>
+                      <label class="intake-field">
+                        <span>Sex</span>
+                        <select id="patientSex">
+                          <option value="">Not specified</option>
+                          <option value="female">Female</option>
+                          <option value="male">Male</option>
+                          <option value="other">Other</option>
+                        </select>
+                      </label>
+                      <label class="intake-field full-width">
+                        <span>Symptom Notes</span>
+                        <textarea id="symptomNotes" maxlength="500" rows="2" placeholder="Any additional notes (optional)"></textarea>
+                      </label>
+                      <label class="intake-field full-width">
+                        <span>Additional Notes / Doctor Comments <span class="optional-tag">(optional)</span></span>
+                        <textarea id="additionalNotes" maxlength="1000" rows="3" placeholder="E.g. doctor's comments, personal observations, any other symptoms you want to mention..."></textarea>
+                      </label>
+                    </div>
+                  </details>
+
+                  <!-- Recovery basis summary -->
+                  <div class="recovery-basis" id="recoveryBasis" hidden>
+                    <p class="basis-label">Recommendation basis:</p>
+                    <p class="basis-text" id="recoveryBasisText"></p>
+                  </div>
+
+                  <button id="analyzeButton" class="primary-action" type="button" disabled>
+                    Step 2 — Generate Recovery Plan
+                  </button>
+                  <p class="message" id="clinicalMessage"></p>
+                </div>
               </article>
 
+              <!-- ---- Image Viewer Panel ---- -->
               <article class="viewer-panel" id="viewer">
-              <div class="section-heading">
-                <span class="step" title="Step 2: Image Review">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                </span>
-                <div>
-                  <h2>Image Review</h2>
-                  <p>X-ray and heatmap.</p>
+                <div class="section-heading">
+                  <span class="step" title="Step 2: Image Review">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                  </span>
+                  <div>
+                    <h2>Image Review</h2>
+                    <p>X-ray and Grad-CAM heatmap.</p>
+                  </div>
                 </div>
-              </div>
 
-              <div class="image-compare">
-                <article>
-                  <div class="image-title">
-                    <strong>Original X-ray</strong>
-                    <span id="originalStatus">No image selected</span>
-                  </div>
-                  <div class="image-frame preview-wrap" id="previewWrap">
-                    <img id="imagePreview" alt="Selected X-ray preview" />
-                  </div>
-                </article>
+                <div class="image-compare">
+                  <article>
+                    <div class="image-title">
+                      <strong>Original X-ray</strong>
+                      <span id="originalStatus">No image selected</span>
+                    </div>
+                    <div class="image-frame preview-wrap" id="previewWrap">
+                      <img id="imagePreview" alt="Selected X-ray preview" />
+                    </div>
+                  </article>
 
-                <article>
-                  <div class="image-title">
-                    <strong>Model Focus Heatmap</strong>
-                    <span id="heatmapStatus">Available after real analysis</span>
-                  </div>
-                  <div class="image-frame heatmap-wrap" id="heatmapWrap">
-                    <img id="heatmapImage" alt="Grad-CAM heatmap overlay" />
-                  </div>
-                  <p class="heatmap-note" id="heatmapNote"></p>
-                </article>
-              </div>
+                  <article>
+                    <div class="image-title">
+                      <strong>Model Focus Heatmap</strong>
+                      <span id="heatmapStatus">Available after analysis</span>
+                    </div>
+                    <div class="image-frame heatmap-wrap" id="heatmapWrap">
+                      <img id="heatmapImage" alt="Grad-CAM heatmap overlay" />
+                    </div>
+                    <p class="heatmap-note" id="heatmapNote"></p>
+                  </article>
+                </div>
               </article>
 
+              <!-- ---- Detection Result Panel ---- -->
               <article class="result-panel" id="resultPanel">
-              <div class="section-heading compact-heading">
-                <span class="step" title="Step 3: AI Inference">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-                </span>
-                <div>
-                  <h2>AI Result</h2>
-                  <p>Finding and confidence.</p>
-                </div>
-              </div>
-
-              <div class="empty-state" id="emptyState">
-                Upload an X-ray image to view results, heatmap, and recommendations.
-              </div>
-
-              <div class="result-content" id="resultContent" hidden>
-                <div class="risk-banner" id="riskBanner">
-                  <span id="riskLabel">Awaiting analysis</span>
-                  <strong id="doctorAdvice">Clinical confirmation required for concerning findings.</strong>
-                </div>
-
-                <div class="metric-row">
+                <div class="section-heading compact-heading">
+                  <span class="step" title="Step 3: AI Inference">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                  </span>
                   <div>
-                    <span class="metric-label">Possible Pattern</span>
-                    <strong id="predictionLabel">-</strong>
-                  </div>
-                  <div>
-                    <span class="metric-label">Condition</span>
-                    <strong id="conditionLabel">-</strong>
-                  </div>
-                  <div>
-                    <span class="metric-label">Confidence</span>
-                    <strong id="confidenceValue">-</strong>
+                    <h2>Detection Result</h2>
+                    <p>Fracture detection and confidence.</p>
                   </div>
                 </div>
 
-                <div class="model-meta">
-                  <span id="modelMode">Model: -</span>
-                  <span id="explainabilityMethod">Explanation: -</span>
-                  <span id="decisionStatus">Decision: -</span>
-                  <span id="bodyPartStatus">Body part: -</span>
+                <div class="empty-state" id="emptyState">
+                  Upload an X-ray image to begin analysis.
                 </div>
 
-                <div class="probabilities" id="probabilities"></div>
+                <div class="result-content" id="resultContent" hidden>
+                  <div class="risk-banner" id="riskBanner">
+                    <span id="riskLabel">Awaiting analysis</span>
+                    <strong id="doctorAdvice">Clinical confirmation required for concerning findings.</strong>
+                  </div>
 
-                <div class="safety-checks" id="safetyChecks" hidden>
-                  <article>
-                    <span>Image Quality</span>
-                    <p id="qualityStatus"></p>
-                  </article>
-                  <article>
-                    <span>Review Reasons</span>
-                    <ul id="decisionReasons"></ul>
-                  </article>
+                  <div class="metric-row">
+                    <div>
+                      <span class="metric-label">Possible Pattern</span>
+                      <strong id="predictionLabel">-</strong>
+                    </div>
+                    <div>
+                      <span class="metric-label">Condition</span>
+                      <strong id="conditionLabel">-</strong>
+                    </div>
+                    <div>
+                      <span class="metric-label">Confidence</span>
+                      <strong id="confidenceValue">-</strong>
+                    </div>
+                    <div>
+                      <span class="metric-label">Confidence Level</span>
+                      <strong id="confidenceLevelValue">-</strong>
+                    </div>
+                  </div>
+
+                  <div class="model-meta">
+                    <span id="modelMode">Model: -</span>
+                    <span id="explainabilityMethod">Explanation: -</span>
+                    <span id="decisionStatus">Decision: -</span>
+                  </div>
+
+                  <div class="probabilities" id="probabilities"></div>
+
+                  <div class="safety-checks" id="safetyChecks" hidden>
+                    <article>
+                      <span>Image Quality</span>
+                      <p id="qualityStatus"></p>
+                    </article>
+                    <article>
+                      <span>Review Reasons</span>
+                      <ul id="decisionReasons"></ul>
+                    </article>
+                  </div>
+
+                  <div class="disclaimer" id="predictionDisclaimer"></div>
+
+                  <!-- Action buttons -->
+                  <button id="downloadReportButton" class="secondary-action" type="button" hidden>Download Full PDF Report</button>
+                  <button id="assistantOpenButton" class="assistant-action" type="button" hidden>Ask AI Assistant</button>
                 </div>
-
-                <div class="disclaimer" id="predictionDisclaimer"></div>
-
-              <button id="downloadReportButton" class="secondary-action" type="button" hidden>
-                  Download Full PDF Report
-                </button>
-                <button id="downloadDietPlanButton" class="secondary-action" type="button" hidden>
-                  Download Diet Plan
-                </button>
-                <button id="assistantOpenButton" class="assistant-action" type="button" hidden>
-                  Ask AI Assistant
-                </button>
-              </div>
               </article>
             </section>
 
+            <!-- ============================================================ -->
+            <!-- LLM Explanation Panel                                         -->
+            <!-- ============================================================ -->
             <section class="llm-panel" id="llmPanel" hidden>
-            <div class="section-heading">
-              <span class="step" title="AI Explainability">
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
-              </span>
-              <div>
-                <h2>AI Explanation</h2>
-                <p id="llmStatus">Plain-language result summary.</p>
+              <div class="section-heading">
+                <span class="step" title="AI Explainability">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+                </span>
+                <div>
+                  <h2>AI Explanation</h2>
+                  <p id="llmStatus">Plain-language result summary.</p>
+                </div>
               </div>
-            </div>
 
-            <div class="explanation-grid">
-              <article class="explanation-main">
-                <span>Summary</span>
-                <p id="llmSummary"></p>
-              </article>
-              <article>
-                <span>Confidence</span>
-                <p id="llmConfidenceNote"></p>
-              </article>
-              <article>
-                <span>Heatmap</span>
-                <p id="llmHeatmapNote"></p>
-              </article>
-              <article>
-                <span>Next Steps</span>
-                <p id="llmNextSteps"></p>
-              </article>
-              <article>
-                <span>Safety</span>
-                <p id="llmSafetyNote"></p>
-              </article>
-            </div>
+              <div class="explanation-grid">
+                <article class="explanation-main">
+                  <span>Summary</span>
+                  <p id="llmSummary"></p>
+                </article>
+                <article>
+                  <span>Confidence</span>
+                  <p id="llmConfidenceNote"></p>
+                </article>
+                <article>
+                  <span>Confidence Level</span>
+                  <p id="llmConfidenceLevel"></p>
+                </article>
+                <article>
+                  <span>Heatmap</span>
+                  <p id="llmHeatmapNote"></p>
+                </article>
+                <article>
+                  <span>Next Steps</span>
+                  <p id="llmNextSteps"></p>
+                </article>
+                <article>
+                  <span>Safety</span>
+                  <p id="llmSafetyNote"></p>
+                </article>
+              </div>
             </section>
 
-          <section class="recommendations" id="recommendations" hidden>
-            <div class="section-heading">
-              <span class="step" title="Step 4: Recovery Guidance">
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
-              </span>
-              <div>
-                <h2>Recovery Guidance</h2>
-                <p id="recommendationSummary"></p>
-              </div>
-            </div>
+            <!-- ============================================================ -->
+            <!-- Recovery Guidance Section                                     -->
+            <!-- ============================================================ -->
+            <section class="recommendations" id="recommendations" hidden>
 
-            <div class="recommendation-meta">
-              <span id="severityBadge"></span>
-            </div>
-
-            <div class="care-plan-grid">
-              <article>
-                <span>Red Flags</span>
-                <p id="careRedFlags">Watch for severe pain, swelling, numbness, deformity, or loss of function.</p>
-              </article>
-              <article>
-                <span>Pain Rule</span>
-                <p id="carePainRule">Continue only when discomfort stays mild and settles after activity.</p>
-              </article>
-              <article>
-                <span>Follow-up</span>
-                <p id="careFollowUp">Reassess symptoms within 48-72 hours or sooner for high-risk findings.</p>
-              </article>
-              <article>
-                <span>Activity</span>
-                <p id="careActivity">Avoid loading the area until serious injury has been ruled out.</p>
-              </article>
-            </div>
-
-            <div class="guidance-grid">
-              <article class="do-card">
-                <h3>Do</h3>
-                <ul id="doList"></ul>
-              </article>
-              <article class="avoid-card">
-                <h3>Avoid</h3>
-                <ul id="avoidList"></ul>
-              </article>
-              <article class="timeline-card">
-                <h3>Timeline</h3>
-                <ol id="followUpTimeline"></ol>
-              </article>
-            </div>
-
-            <div class="exercise-section">
-              <div class="section-heading compact-heading">
-                <span class="step" title="Exercise Protocol">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+              <!-- Recovery Guidance Header -->
+              <div class="section-heading">
+                <span class="step" title="Recovery Guidance">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
                 </span>
                 <div>
-                  <h2>Exercise Plan</h2>
-                  <p id="exercisePlanNote">Shown only when movement is appropriate for the screening result.</p>
+                  <h2>Recovery Guidance</h2>
+                  <p id="recommendationSummary"></p>
                 </div>
               </div>
-              <div class="exercise-grid" id="exerciseGrid"></div>
-            </div>
 
-            <div class="nutrition-section" id="nutritionPlanPanel" hidden>
-              <div class="section-heading compact-heading">
-                <span class="step" title="Nutrition Guidance">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21.9c4.4 0 8-3.6 8-8V3c0-.6-.4-1-1-1H5c-.6 0-1 .4-1 1v10.9c0 4.4 3.6 8 8 8z"/><path d="M12 2v20"/></svg>
-                </span>
+              <!-- Red Flag Alert -->
+              <div class="red-flag-alert" id="redFlagAlert" hidden>
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                 <div>
-                  <h2>Nutrition Plan</h2>
-                  <p id="nutritionSummary">Recovery meals and daily targets.</p>
+                  <strong>Seek Clinical Review</strong>
+                  <ul id="redFlagList"></ul>
                 </div>
               </div>
-              <div class="nutrition-targets">
-                <h3>Daily Targets</h3>
-                <ul id="nutritionTargets"></ul>
+
+              <!-- Recovery Basis (justification) -->
+              <div class="recovery-justification" id="recoveryJustification" hidden>
+                <details open>
+                  <summary class="justification-summary">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                    Why this guidance?
+                  </summary>
+                  <p id="justificationText" class="justification-body"></p>
+                </details>
               </div>
-              <div class="meal-grid" id="mealGrid"></div>
-              <div class="tips">
-                <h3>Dietary and recovery notes</h3>
-                <ul id="dietaryTips"></ul>
-                <h3>Limit during recovery</h3>
-                <ul id="nutritionAvoid"></ul>
+
+              <!-- Severity badge -->
+              <div class="recommendation-meta">
+                <span id="severityBadge"></span>
               </div>
-            </div>
+
+              <!-- Recovery Risk Level Banner -->
+              <div class="recovery-risk-banner" id="recoveryRiskBanner" hidden>
+                <div class="risk-level-indicator" id="riskLevelIndicator">
+                  <span class="risk-level-icon" id="riskLevelIcon">●</span>
+                  <div>
+                    <strong id="riskLevelLabel">Risk Level</strong>
+                    <ul id="riskLevelReasons" class="risk-reasons-list"></ul>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Clinical Context Used -->
+              <div class="clinical-context-used" id="clinicalContextUsed" hidden>
+                <div class="section-heading compact-heading">
+                  <span class="step">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                  </span>
+                  <div>
+                    <h2>Clinical Context Used</h2>
+                    <p>These clinical factors were used by the recovery engine to generate recommendations.</p>
+                  </div>
+                </div>
+                <div class="clinical-context-grid" id="clinicalContextGrid"></div>
+              </div>
+
+              <!-- Recommendation Reasoning -->
+              <div class="recommendation-reasoning" id="recommendationReasoning" hidden>
+                <details>
+                  <summary class="justification-summary">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                    Why Were These Recommendations Generated?
+                  </summary>
+                  <ul id="reasoningFactorList" class="reasoning-list"></ul>
+                </details>
+              </div>
+
+              <!-- Body-part-specific guidance cards -->
+              <div class="care-plan-grid">
+                <article>
+                  <span>Daily Focus</span>
+                  <ul id="doList" class="guidance-list"></ul>
+                </article>
+                <article>
+                  <span>Avoid</span>
+                  <ul id="avoidList" class="guidance-list avoid-list"></ul>
+                </article>
+                <article>
+                  <span>Recovery Timeline</span>
+                  <ol id="followUpTimeline"></ol>
+                </article>
+                <article>
+                  <span>Safety Rules</span>
+                  <p id="careRedFlags">Watch for severe pain, numbness, deformity, or loss of function — seek immediate clinical review.</p>
+                </article>
+              </div>
+
+              <!-- When to Seek Medical Help -->
+              <div class="when-to-seek-help" id="whenToSeekHelp" hidden>
+                <div class="seek-help-header">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.56 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9.27a16 16 0 0 0 6.29 6.29l.87-.87a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                  <strong>When To Seek Medical Help</strong>
+                </div>
+                <ul id="seekHelpList" class="seek-help-list"></ul>
+              </div>
+
+              <!-- Exercise Eligibility Banner -->
+              <div class="eligibility-banner" id="eligibilityBanner">
+                <div class="eligibility-icon" id="eligibilityIcon">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+                </div>
+                <div>
+                  <strong id="eligibilityTitle">Exercise Eligibility</strong>
+                  <p id="eligibilityReason"></p>
+                </div>
+              </div>
+
+              <!-- Exercise Plan Section -->
+              <div class="exercise-section">
+                <div class="section-heading compact-heading">
+                  <span class="step" title="Exercise Protocol">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+                  </span>
+                  <div>
+                    <h2>Exercise Plan</h2>
+                    <p id="exercisePlanNote">Shown only when clinically appropriate.</p>
+                  </div>
+                </div>
+                <!-- Treatment note -->
+                <div class="treatment-note" id="treatmentNote" hidden>
+                  <p id="treatmentNoteText"></p>
+                </div>
+                <div class="exercise-grid" id="exerciseGrid"></div>
+              </div>
+
+              <!-- Nutrition Section -->
+              <div class="nutrition-section" id="nutritionPlanPanel" hidden>
+                <div class="section-heading compact-heading">
+                  <span class="step" title="Nutrition Guidance">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21.9c4.4 0 8-3.6 8-8V3c0-.6-.4-1-1-1H5c-.6 0-1 .4-1 1v10.9c0 4.4 3.6 8 8 8z"/><path d="M12 2v20"/></svg>
+                  </span>
+                  <div>
+                    <h2>Nutrition Plan</h2>
+                    <p id="nutritionSummary">Stage-specific recovery meals and daily targets.</p>
+                  </div>
+                </div>
+                <div class="nutrition-targets">
+                  <h3>Daily Targets</h3>
+                  <ul id="nutritionTargets"></ul>
+                </div>
+                <div class="meal-grid" id="mealGrid"></div>
+                <div class="tips">
+                  <h3>Dietary and recovery notes</h3>
+                  <ul id="dietaryTips"></ul>
+                  <h3>Limit during recovery</h3>
+                  <ul id="nutritionAvoid"></ul>
+                </div>
+              </div>
+
+              <div class="educational-disclaimer-card" id="educationalDisclaimerCard">
+                <strong>Educational Disclaimer</strong>
+                <p>AI Physio is an educational clinical decision-support system.</p>
+                <p>Recommendations are generated using AI analysis and user-provided clinical information.</p>
+                <p>This system is not a substitute for professional medical diagnosis, treatment, or clinical judgment.</p>
+                <p>Always consult a qualified healthcare professional for medical decisions.</p>
+              </div>
+
             </section>
           </section>
 
+          <!-- ============================================================ -->
+          <!-- MODEL METRICS PAGE                                            -->
+          <!-- ============================================================ -->
           <section class="page" id="metricsPage" hidden>
             <section class="performance-panel" id="metrics">
               <div class="section-heading">
@@ -492,6 +738,9 @@
       </div>
     </div>
 
+    <!-- ================================================================== -->
+    <!-- AI ASSISTANT DRAWER                                                 -->
+    <!-- ================================================================== -->
     <section class="assistant-drawer" id="assistantDrawer" hidden aria-label="AI recovery assistant">
       <div class="assistant-panel">
         <div class="assistant-header">
@@ -503,11 +752,11 @@
         </div>
         <div class="assistant-thread" id="assistantThread">
           <article class="assistant-message assistant-message-ai">
-            <p>Ask about symptoms, safe exercise timing, report meaning, or recovery diet. I will answer using your latest analysis when available.</p>
+            <p>Ask about symptoms, safe exercise timing, report meaning, or recovery diet. I will use your latest analysis context including body part, treatment, stage, and exercise eligibility when answering.</p>
           </article>
         </div>
         <div class="assistant-input-row">
-          <textarea id="assistantQuestion" rows="3" maxlength="1000" placeholder="Example: I fell down and my ankle is swollen. Should I exercise today?"></textarea>
+          <textarea id="assistantQuestion" rows="3" maxlength="1000" placeholder="Example: My wrist is in a cast and I am in acute phase. Can I move my fingers?"></textarea>
           <button id="assistantSendButton" class="primary-action compact-action" type="button">Ask</button>
         </div>
         <p class="assistant-note" id="assistantStatus">Educational support only. Use a clinician for diagnosis or urgent symptoms.</p>

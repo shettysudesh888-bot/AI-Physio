@@ -2,6 +2,7 @@ from pathlib import Path
 
 from fastapi import Body, FastAPI, File, Header, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel, Field
 from datetime import datetime, timezone
@@ -16,20 +17,36 @@ import json
 try:
     from .llm_explanation import explain_result
     from .predict import predict_condition
-    from .recovery_guidance import answer_recovery_question, build_recovery_guidance, enrich_exercise_media
+    from .recovery_guidance import (
+        answer_recovery_question,
+        build_recovery_guidance,
+        compute_exercise_eligibility,
+        compute_recovery_risk_level,
+        detect_red_flags,
+        enrich_exercise_media,
+        enrich_plan_exercise_media,
+    )
     from .report import build_analysis_report_pdf, build_nutrition_report_pdf
-    from .recommendation import EXERCISE_MAP, get_recommendations
+    from .recommendation import EXERCISE_MAP, get_recommendations, get_exercise_plan
 except ImportError:
     from llm_explanation import explain_result
     from predict import predict_condition
-    from recovery_guidance import answer_recovery_question, build_recovery_guidance, enrich_exercise_media
+    from recovery_guidance import (
+        answer_recovery_question,
+        build_recovery_guidance,
+        compute_exercise_eligibility,
+        compute_recovery_risk_level,
+        detect_red_flags,
+        enrich_exercise_media,
+        enrich_plan_exercise_media,
+    )
     from report import build_analysis_report_pdf, build_nutrition_report_pdf
-    from recommendation import EXERCISE_MAP, get_recommendations
+    from recommendation import EXERCISE_MAP, get_recommendations, get_exercise_plan
 
 app = FastAPI(
     title="AI Physio API",
     description="Bone X-ray analysis and physiotherapy recommendation system",
-    version="1.0.0",
+    version="2.0.0",
 )
 
 app.add_middleware(
@@ -46,17 +63,56 @@ UPLOAD_DIR = Path(tempfile.gettempdir()) / "ai_physio_uploads"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 DB_PATH = PROJECT_ROOT / "ai_physio.db"
 
+app.mount("/frontend", StaticFiles(directory=str(PROJECT_ROOT / "frontend")), name="frontend")
+
 ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".tiff"}
+
+# ---------------------------------------------------------------------------
+# Pydantic models
+# ---------------------------------------------------------------------------
+
+# Valid values for enum-like fields
+VALID_BODY_PARTS = {
+    "skull", "spine", "shoulder", "elbow", "wrist_hand",
+    "pelvis_hip", "femur", "knee", "lower_leg", "ankle_foot",
+}
+VALID_TREATMENT_STATUS = {
+    "not_evaluated", "cast_plaster", "brace_support",
+    "surgery_performed", "physiotherapy_started",
+}
+VALID_RECOVERY_STAGE = {"acute_phase", "early_recovery", "late_recovery"}
+VALID_SWELLING_LEVEL = {"none", "mild", "moderate", "severe"}
+VALID_MOBILITY_STATUS = {
+    "normal", "slightly_limited", "moderately_limited", "severely_limited",
+}
+VALID_DOCTOR_RESTRICTIONS = {
+    "no_restrictions", "weight_bearing_restricted",
+    "movement_restricted", "exercise_restricted", "not_sure",
+}
+VALID_EXERCISE_APPROVAL = {"yes", "no", "not_sure"}
 
 
 class PatientContext(BaseModel):
+    """
+    Clinical context collected from the user.
+    The 8 core clinical fields drive the recovery engine.
+    Age, sex, and symptom_notes are supplementary.
+    """
+    # Core clinical fields (required for recovery engine)
+    body_part: str | None = Field(default=None)
+    treatment_status: str | None = Field(default=None)
+    recovery_stage: str | None = Field(default=None)
+    pain_level: int | None = Field(default=None, ge=0, le=10)
+    swelling_level: str | None = Field(default=None)
+    mobility_status: str | None = Field(default=None)
+    doctor_restrictions: str | None = Field(default=None)
+    exercise_approval: str | None = Field(default=None)
+
+    # Supplementary fields
     age: int | None = Field(default=None, ge=0, le=120)
     sex: str | None = None
-    body_part: str | None = None
-    pain_level: int | None = Field(default=None, ge=0, le=10)
-    swelling: bool | None = None
-    recent_trauma: bool | None = None
     symptom_notes: str | None = Field(default=None, max_length=500)
+    additional_notes: str | None = Field(default=None, max_length=1000)
 
 
 class AuthRequest(BaseModel):
@@ -70,14 +126,27 @@ class AssistantRequest(BaseModel):
     patient_context: dict | None = None
 
 
+# ---------------------------------------------------------------------------
+# DB helpers
+# ---------------------------------------------------------------------------
+
+
 def db_connect() -> sqlite3.Connection:
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
 
 
+def _add_column_if_missing(conn: sqlite3.Connection, table: str, column: str, col_type: str) -> None:
+    """Add a column to a table only if it does not already exist."""
+    existing = {row[1] for row in conn.execute(f"PRAGMA table_info({table})")}
+    if column not in existing:
+        conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}")
+
+
 def init_db() -> None:
     with db_connect() as conn:
+        # Core tables
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS users (
@@ -114,6 +183,27 @@ def init_db() -> None:
             )
             """
         )
+
+        # Migration: add new clinical columns to cases (safe no-op if already present)
+        new_columns = [
+            ("treatment_status", "TEXT"),
+            ("recovery_stage", "TEXT"),
+            ("swelling_level", "TEXT"),
+            ("mobility_status", "TEXT"),
+            ("doctor_restrictions", "TEXT"),
+            ("exercise_approval", "TEXT"),
+            ("exercise_eligible", "INTEGER"),
+            ("exercise_ineligible_reason", "TEXT"),
+            ("recovery_risk_level", "TEXT"),
+            ("additional_notes", "TEXT"),
+        ]
+        for col_name, col_type in new_columns:
+            _add_column_if_missing(conn, "cases", col_name, col_type)
+
+
+# ---------------------------------------------------------------------------
+# Auth helpers
+# ---------------------------------------------------------------------------
 
 
 def utc_now() -> str:
@@ -176,8 +266,13 @@ def require_user(authorization: str | None) -> dict:
     return user
 
 
+# ---------------------------------------------------------------------------
+# Context helpers
+# ---------------------------------------------------------------------------
+
+
 def clean_patient_context(context: PatientContext | None) -> dict:
-    """Return only meaningful intake values for LLM/report context."""
+    """Return only meaningful intake values for the engine and reports."""
     if context is None:
         return {}
 
@@ -190,49 +285,46 @@ def clean_patient_context(context: PatientContext | None) -> dict:
             value = value.strip()
             if not value:
                 continue
+        # BUG FIX: explicitly coerce pain_level to int (fixes edge case where it arrives as a float/string)
+        if key == "pain_level":
+            try:
+                value = int(float(value))
+            except (ValueError, TypeError):
+                pass
         cleaned[key] = value
     return cleaned
 
 
-def body_part_detection(patient_context: dict) -> dict:
-    """
-    Return body-part information for the analysis.
+def has_clinical_context(ctx: dict) -> bool:
+    """Return True when the 8 required clinical fields are present."""
+    required = [
+        "body_part", "treatment_status", "recovery_stage", "pain_level",
+        "swelling_level", "mobility_status", "doctor_restrictions", "exercise_approval",
+    ]
+    return all(ctx.get(f) is not None for f in required)
 
-    Automatic body-part detection requires a model trained on body-part labels.
-    The current dataset only has fractured/not_fractured folders, so the API is
-    explicit about that instead of pretending to infer anatomy.
-    """
-    provided = patient_context.get("body_part")
-    if provided:
-        return {
-            "body_part": provided,
-            "source": "user",
-            "status": "provided",
-            "note": "Body part was supplied by the user.",
-        }
 
-    return {
-        "body_part": None,
-        "source": "unavailable",
-        "status": "needs_labeled_training_data",
-        "note": (
-            "Automatic body-part detection is not enabled because this project "
-            "does not currently include body-part-labeled training folders."
-        ),
-    }
+# ---------------------------------------------------------------------------
+# Case persistence
+# ---------------------------------------------------------------------------
 
 
 def save_case(user_id: int, file_id: str, analysis: dict) -> int:
     prediction = analysis.get("prediction") or {}
     patient_context = analysis.get("patient_context") or {}
+    exercise_eligibility = (analysis.get("recovery_guidance") or {}).get("exercise_eligibility") or {}
+
     with db_connect() as conn:
         cursor = conn.execute(
             """
             INSERT INTO cases (
                 user_id, file_id, created_at, prediction_label, condition,
-                confidence, body_part, analysis_json
+                confidence, body_part, analysis_json,
+                treatment_status, recovery_stage, swelling_level, mobility_status,
+                doctor_restrictions, exercise_approval, exercise_eligible, exercise_ineligible_reason,
+                recovery_risk_level, additional_notes
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 user_id,
@@ -243,13 +335,27 @@ def save_case(user_id: int, file_id: str, analysis: dict) -> int:
                 prediction.get("confidence"),
                 patient_context.get("body_part"),
                 json.dumps(analysis),
+                patient_context.get("treatment_status"),
+                patient_context.get("recovery_stage"),
+                patient_context.get("swelling_level"),
+                patient_context.get("mobility_status"),
+                patient_context.get("doctor_restrictions"),
+                patient_context.get("exercise_approval"),
+                1 if exercise_eligibility.get("eligible") else 0,
+                exercise_eligibility.get("reason"),
+                (analysis.get("recovery_guidance") or {}).get("recovery_risk_level", {}).get("level"),
+                patient_context.get("additional_notes"),
             ),
         )
         return int(cursor.lastrowid)
 
 
+# ---------------------------------------------------------------------------
+# Image helpers
+# ---------------------------------------------------------------------------
+
+
 def find_uploaded_image(file_id: str) -> Path | None:
-    """Return the uploaded image path for a file id, if it exists."""
     for ext in ALLOWED_EXTENSIONS:
         candidate = UPLOAD_DIR / f"{file_id}{ext}"
         if candidate.exists():
@@ -258,8 +364,80 @@ def find_uploaded_image(file_id: str) -> Path | None:
 
 
 def uploaded_image_url(file_id: str) -> str:
-    """Return the API path for a previously uploaded image."""
     return f"/uploads/{file_id}"
+
+
+# ---------------------------------------------------------------------------
+# Recovery payload assembly
+# ---------------------------------------------------------------------------
+
+
+def build_full_analysis(
+    file_id: str,
+    prediction: dict,
+    patient_context_data: dict,
+) -> dict:
+    """
+    Assemble the complete analysis response using the new recovery engine.
+
+    Works with both full clinical context (8 fields) and partial context
+    (for backward compatibility with the legacy /analyze endpoint).
+    """
+    condition = (
+        "uncertain"
+        if (prediction.get("decision") or {}).get("is_uncertain")
+        else prediction.get("condition", "unknown")
+    )
+
+    if has_clinical_context(patient_context_data):
+        # ---- New engine: body-part-aware ----
+        eligibility = compute_exercise_eligibility(patient_context_data)
+        exercise_plan_raw = get_exercise_plan(
+            body_part=patient_context_data.get("body_part", ""),
+            recovery_stage=patient_context_data.get("recovery_stage", ""),
+            treatment_status=patient_context_data.get("treatment_status", ""),
+            exercise_eligible=eligibility["eligible"],
+        )
+        exercise_plan = enrich_plan_exercise_media(exercise_plan_raw)
+        recovery_guidance = build_recovery_guidance(prediction, patient_context_data, exercise_plan)
+
+        # Legacy recommendations block (for backward-compatible UI rendering)
+        recommendations = enrich_exercise_media(get_recommendations(condition))
+
+    else:
+        # ---- Legacy engine: condition-based fallback ----
+        eligibility = {"eligible": False, "reason": "Clinical context not provided.", "rule_triggered": None}
+        exercise_plan = {"exercises": [], "exercise_eligible": False}
+        recommendations = enrich_exercise_media(get_recommendations(condition))
+        recovery_guidance = build_recovery_guidance(prediction, patient_context_data, exercise_plan)
+
+    llm_explanation = explain_result(prediction, recommendations, patient_context_data)
+
+    return {
+        "file_id": file_id,
+        "original_image_url": uploaded_image_url(file_id),
+        "prediction": prediction,
+        "patient_context": patient_context_data,
+        "exercise_eligibility": eligibility,
+        "exercise_plan": exercise_plan,
+        "recovery_guidance": recovery_guidance,
+        "recommendations": recommendations,  # legacy field kept for PDF renderer
+        "llm_explanation": llm_explanation,
+        "recommendation_reasoning": {
+            "fracture_detection": prediction.get("condition", "unknown"),
+            "factors_used": [
+                f"Fracture detection result: {prediction.get('condition', 'unknown').title()}",
+                f"Body part: {(patient_context_data.get('body_part') or 'not specified').replace('_', ' ').title()}",
+                f"Treatment status: {(patient_context_data.get('treatment_status') or 'not specified').replace('_', ' ').title()}",
+                f"Recovery stage: {(patient_context_data.get('recovery_stage') or 'not specified').replace('_', ' ').title()}",
+                f"Pain level: {patient_context_data.get('pain_level', 'not specified')}/10",
+                f"Swelling level: {(patient_context_data.get('swelling_level') or 'not specified').replace('_', ' ').title()}",
+                f"Mobility status: {(patient_context_data.get('mobility_status') or 'not specified').replace('_', ' ').title()}",
+                f"Doctor restrictions: {(patient_context_data.get('doctor_restrictions') or 'not specified').replace('_', ' ').title()}",
+                f"Exercise approval: {(patient_context_data.get('exercise_approval') or 'not specified').replace('_', ' ').title()}",
+            ],
+        },
+    }
 
 
 def ensure_recovery_payload(analysis: dict) -> dict:
@@ -267,32 +445,69 @@ def ensure_recovery_payload(analysis: dict) -> dict:
     normalized = dict(analysis or {})
     prediction = normalized.get("prediction") or {}
     patient_context = normalized.get("patient_context") or {}
-    condition = "uncertain" if (prediction.get("decision") or {}).get("is_uncertain") else prediction.get("condition", "unknown")
+    condition = (
+        "uncertain"
+        if (prediction.get("decision") or {}).get("is_uncertain")
+        else prediction.get("condition", "unknown")
+    )
 
-    recommendations = normalized.get("recommendations") or get_recommendations(condition)
-    normalized["recommendations"] = enrich_exercise_media(recommendations)
+    if not normalized.get("recommendations"):
+        normalized["recommendations"] = enrich_exercise_media(get_recommendations(condition))
+
+    if not normalized.get("exercise_plan"):
+        if has_clinical_context(patient_context):
+            eligibility = compute_exercise_eligibility(patient_context)
+            exercise_plan_raw = get_exercise_plan(
+                body_part=patient_context.get("body_part", ""),
+                recovery_stage=patient_context.get("recovery_stage", ""),
+                treatment_status=patient_context.get("treatment_status", ""),
+                exercise_eligible=eligibility["eligible"],
+            )
+            normalized["exercise_plan"] = enrich_plan_exercise_media(exercise_plan_raw)
+            normalized["exercise_eligibility"] = eligibility
+        else:
+            normalized["exercise_plan"] = {"exercises": [], "exercise_eligible": False}
+            normalized["exercise_eligibility"] = {
+                "eligible": False,
+                "reason": "Clinical context not provided.",
+                "rule_triggered": None,
+            }
 
     if not (normalized.get("recovery_guidance") or {}).get("nutrition_plan"):
         normalized["recovery_guidance"] = build_recovery_guidance(
             prediction,
-            normalized["recommendations"],
             patient_context,
+            normalized.get("exercise_plan"),
         )
 
     return normalized
 
 
+# ---------------------------------------------------------------------------
+# DB init
+# ---------------------------------------------------------------------------
+
 init_db()
+
+
+# ---------------------------------------------------------------------------
+# Routes — health & root
+# ---------------------------------------------------------------------------
 
 
 @app.get("/")
 def root():
-    return {"message": "AI Physio API is running", "version": "1.0.0"}
+    return {"message": "AI Physio API is running", "version": "2.0.0"}
 
 
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
+
+
+# ---------------------------------------------------------------------------
+# Routes — auth
+# ---------------------------------------------------------------------------
 
 
 @app.post("/auth/register")
@@ -345,12 +560,14 @@ def logout(authorization: str | None = Header(default=None)):
     return {"status": "ok"}
 
 
+# ---------------------------------------------------------------------------
+# Routes — upload & predict
+# ---------------------------------------------------------------------------
+
+
 @app.post("/upload")
 async def upload_xray(file: UploadFile = File(...)):
-    """
-    Upload a bone X-ray image.
-    Returns a file_id that can be used to run prediction.
-    """
+    """Upload a bone X-ray image. Returns a file_id for prediction."""
     original_filename = file.filename or ""
     ext = Path(original_filename).suffix.lower()
     if ext not in ALLOWED_EXTENSIONS:
@@ -385,20 +602,60 @@ def uploaded_image(file_id: str):
 @app.post("/predict/{file_id}")
 async def predict(file_id: str):
     """
-    Run AI prediction on a previously uploaded X-ray.
-    Returns detected condition and confidence score.
+    Phase 1: Run AI prediction on a previously uploaded X-ray.
+    Returns fracture detection result and confidence score.
+    The client shows this result, then collects clinical context for /recovery.
     """
     image_path = find_uploaded_image(file_id)
-
     if not image_path:
         raise HTTPException(status_code=404, detail="File not found. Please upload first.")
 
     result = predict_condition(str(image_path))
-
     if result.get("error"):
         raise HTTPException(status_code=500, detail=result["error"])
 
     return result
+
+
+# ---------------------------------------------------------------------------
+# Routes — recovery (new two-phase primary endpoint)
+# ---------------------------------------------------------------------------
+
+
+@app.post("/recovery/{file_id}")
+async def recovery(
+    file_id: str,
+    patient_context: PatientContext | None = None,
+    authorization: str | None = Header(default=None),
+):
+    """
+    Phase 2: Generate body-part-aware recovery guidance, exercise plan,
+    and nutrition recommendations.
+
+    Requires clinical context (8 fields). Runs prediction internally so
+    the client only needs to provide file_id + patient context.
+    """
+    image_path = find_uploaded_image(file_id)
+    if not image_path:
+        raise HTTPException(status_code=404, detail="File not found. Please upload first.")
+
+    prediction = predict_condition(str(image_path))
+    if prediction.get("error"):
+        raise HTTPException(status_code=500, detail=prediction["error"])
+
+    patient_context_data = clean_patient_context(patient_context)
+    analysis = build_full_analysis(file_id, prediction, patient_context_data)
+
+    user = user_from_authorization(authorization)
+    if user:
+        analysis["case_id"] = save_case(user["id"], file_id, analysis)
+
+    return analysis
+
+
+# ---------------------------------------------------------------------------
+# Routes — analyze (legacy single-call endpoint, kept for compatibility)
+# ---------------------------------------------------------------------------
 
 
 @app.post("/analyze/{file_id}")
@@ -408,36 +665,19 @@ async def analyze(
     authorization: str | None = Header(default=None),
 ):
     """
-    Full pipeline: predict condition AND return exercise recommendations.
-    This is the main endpoint for end-to-end analysis.
+    Full pipeline in one call: predict + recovery guidance.
+    Kept for backward compatibility. Prefer /predict + /recovery for new UX.
     """
     image_path = find_uploaded_image(file_id)
-
     if not image_path:
         raise HTTPException(status_code=404, detail="File not found. Please upload first.")
 
     prediction = predict_condition(str(image_path))
-
     if prediction.get("error"):
         raise HTTPException(status_code=500, detail=prediction["error"])
 
     patient_context_data = clean_patient_context(patient_context)
-    detected_body_part = body_part_detection(patient_context_data)
-    condition = "uncertain" if (prediction.get("decision") or {}).get("is_uncertain") else prediction.get("condition", "unknown")
-    recommendations = enrich_exercise_media(get_recommendations(condition))
-    llm_explanation = explain_result(prediction, recommendations, patient_context_data)
-    recovery_guidance = build_recovery_guidance(prediction, recommendations, patient_context_data)
-
-    analysis = {
-        "file_id": file_id,
-        "original_image_url": uploaded_image_url(file_id),
-        "prediction": prediction,
-        "recommendations": recommendations,
-        "recovery_guidance": recovery_guidance,
-        "patient_context": patient_context_data,
-        "body_part_detection": detected_body_part,
-        "llm_explanation": llm_explanation,
-    }
+    analysis = build_full_analysis(file_id, prediction, patient_context_data)
 
     user = user_from_authorization(authorization)
     if user:
@@ -446,13 +686,20 @@ async def analyze(
     return analysis
 
 
+# ---------------------------------------------------------------------------
+# Routes — cases
+# ---------------------------------------------------------------------------
+
+
 @app.get("/cases")
 def list_cases(authorization: str | None = Header(default=None)):
     user = require_user(authorization)
     with db_connect() as conn:
         rows = conn.execute(
             """
-            SELECT id, file_id, created_at, prediction_label, condition, confidence, body_part
+            SELECT id, file_id, created_at, prediction_label, condition, confidence,
+                   body_part, treatment_status, recovery_stage, exercise_eligible,
+                   exercise_ineligible_reason, recovery_risk_level
             FROM cases
             WHERE user_id = ?
             ORDER BY created_at DESC
@@ -500,6 +747,11 @@ def delete_case(case_id: int, authorization: str | None = Header(default=None)):
     return {"status": "deleted", "case_id": case_id}
 
 
+# ---------------------------------------------------------------------------
+# Routes — reports
+# ---------------------------------------------------------------------------
+
+
 @app.post("/report")
 def create_report(analysis: dict = Body(...)):
     """Generate a downloadable PDF report from an analysis response."""
@@ -519,7 +771,7 @@ def create_report(analysis: dict = Body(...)):
 
 @app.post("/nutrition-report")
 def create_nutrition_report(analysis: dict = Body(...)):
-    """Generate a focused downloadable PDF diet plan from an analysis response."""
+    """Generate a focused downloadable PDF diet plan."""
     if not isinstance(analysis, dict):
         raise HTTPException(status_code=400, detail="Analysis data is required.")
 
@@ -536,6 +788,11 @@ def create_nutrition_report(analysis: dict = Body(...)):
     )
 
 
+# ---------------------------------------------------------------------------
+# Routes — assistant
+# ---------------------------------------------------------------------------
+
+
 @app.post("/assistant")
 def ask_assistant(payload: AssistantRequest):
     """Answer user recovery questions with Groq when configured."""
@@ -545,6 +802,11 @@ def ask_assistant(payload: AssistantRequest):
         analysis=analysis,
         patient_context=payload.patient_context,
     )
+
+
+# ---------------------------------------------------------------------------
+# Routes — model info
+# ---------------------------------------------------------------------------
 
 
 @app.get("/conditions")
@@ -559,7 +821,6 @@ def model_metrics():
     metrics_path = PROJECT_ROOT / "evaluation_metrics.json"
     if not metrics_path.exists():
         raise HTTPException(status_code=404, detail="Evaluation metrics not found.")
-
     return json.loads(metrics_path.read_text(encoding="utf-8"))
 
 
@@ -574,4 +835,3 @@ def confusion_matrix_image(split: str):
         raise HTTPException(status_code=404, detail="Confusion matrix image not found.")
 
     return FileResponse(image_path)
-            

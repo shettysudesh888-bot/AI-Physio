@@ -44,11 +44,12 @@ CLASSES_PATH = PROJECT_ROOT / "backend" / "class_names.json"
 SKIPPED_IMAGES_REPORT = PROJECT_ROOT / "dataset_skipped_images.json"
 METRICS_PATH = PROJECT_ROOT / "evaluation_metrics.json"
 
-IMAGE_SIZE = 160
+import sys
+sys.path.insert(0, str(PROJECT_ROOT))
+from backend.config import IMAGE_SIZE, IMAGENET_MEAN, IMAGENET_STD
+
 BATCH_SIZE = 64
 NUM_WORKERS = 0
-IMAGENET_MEAN = [0.485, 0.456, 0.406]
-IMAGENET_STD = [0.229, 0.224, 0.225]
 
 ImageFile.LOAD_TRUNCATED_IMAGES = False
 
@@ -179,7 +180,11 @@ def main():
 
     class_names = load_class_names()
     model = build_model(num_classes=len(class_names))
-    model.load_state_dict(torch.load(MODEL_PATH, map_location="cpu"))
+    checkpoint = torch.load(MODEL_PATH, map_location="cpu")
+    if isinstance(checkpoint, dict) and "model_state_dict" in checkpoint:
+        model.load_state_dict(checkpoint["model_state_dict"])
+    else:
+        model.load_state_dict(checkpoint)
 
     results = {
         "model_path": str(MODEL_PATH),
